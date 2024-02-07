@@ -35,6 +35,6 @@ pub fn main() !void {
         .{ 0.451415, 0.392953, 0.801132, 0 },
         .{ 14.777467, 29.361945, 27.993464, 1 },
     });
-    const worldToCamera = cameraToWorld.inverse();
+    const worldToCamera = try cameraToWorld.inverse();
     _ = worldToCamera;
 }
