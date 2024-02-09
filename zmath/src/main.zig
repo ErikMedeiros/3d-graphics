@@ -37,17 +37,38 @@ pub fn Matrix(comptime h: usize, comptime w: usize, comptime T: type) type {
         }
 
         // index hell
-        pub fn inverse(self: *const Self) !Self {
-            var output = Self.identity();
-            var clone = Self.init(self.d);
+        pub fn inverse(self: *const Self) error{ NoInverse, OutOfBound }!Self {
+            const FloatT = switch (@typeInfo(T)) {
+                .Float => T,
+                .Int => |i| switch (i.bits) {
+                    0...16 => f16,
+                    17...32 => f32,
+                    33...64 => f64,
+                    else => f128,
+                },
+                else => @compileError("invalid type"),
+            };
+
+            var foutput = Matrix(h, w, FloatT).identity().d;
+            var fdata: [h][w]FloatT = switch (@typeInfo(T)) {
+                .Float => self.d,
+                .Int => arr: {
+                    var array: [h][w]FloatT = undefined;
+                    inline for (0..h) |i| {
+                        inline for (0..w) |j| array[i][j] = @floatFromInt(self.d[i][j]);
+                    }
+                    break :arr array;
+                },
+                else => unreachable,
+            };
 
             for (0..h - 1) |i| {
                 var pivot = i;
-                var pivot_value = clone.d[i][i];
+                var pivot_value = fdata[i][i];
                 if (pivot_value < 0) pivot_value = -pivot_value;
 
                 for (i + 1..h) |j| {
-                    var temp = clone.d[j][i];
+                    var temp = fdata[j][i];
                     if (temp < 0) temp = -temp;
 
                     if (temp > pivot_value) {
@@ -56,43 +77,56 @@ pub fn Matrix(comptime h: usize, comptime w: usize, comptime T: type) type {
                     }
                 }
 
-                if (pivot_value == 0)
-                    return error.NoInverse;
+                if (pivot_value == 0) return error.NoInverse;
 
                 if (pivot != i) {
-                    std.mem.swap([w]T, &clone.d[i], &clone.d[pivot]);
-                    std.mem.swap([w]T, &output.d[i], &output.d[pivot]);
+                    std.mem.swap([w]FloatT, &fdata[i], &fdata[pivot]);
+                    std.mem.swap([w]FloatT, &foutput[i], &foutput[pivot]);
                 }
 
                 for (i + 1..h) |j| {
-                    const v = clone.d[j][i] / clone.d[i][i];
-
+                    const v = fdata[j][i] / fdata[i][i];
                     for (0..h) |k| {
-                        clone.d[j][k] -= v * clone.d[i][k];
-                        output.d[j][k] -= v * output.d[i][k];
+                        fdata[j][k] -= v * fdata[i][k];
+                        foutput[j][k] -= v * foutput[i][k];
                     }
                 }
             }
 
             for (0..h) |i| {
-                const v = clone.d[i][i];
+                const v = fdata[i][i];
                 for (0..h) |j| {
-                    clone.d[i][j] = clone.d[i][j] / v;
-                    output.d[i][j] = output.d[i][j] / v;
+                    fdata[i][j] = fdata[i][j] / v;
+                    foutput[i][j] = foutput[i][j] / v;
                 }
             }
 
             for (0..h - 1) |i| {
                 for (i + 1..h) |j| {
-                    const v = clone.d[i][j];
+                    const v = fdata[i][j];
                     for (0..h) |k| {
-                        clone.d[i][k] -= v * clone.d[j][k];
-                        output.d[i][k] -= v * output.d[j][k];
+                        fdata[i][k] -= v * fdata[j][k];
+                        foutput[i][k] -= v * foutput[j][k];
                     }
                 }
             }
 
-            return output;
+            return switch (@typeInfo(T)) {
+                .Float => Matrix(h, w, T).init(foutput),
+                .Int => |int| m: {
+                    var array: [h][w]T = undefined;
+                    inline for (0..h) |i| {
+                        inline for (0..w) |j| {
+                            if (int.signedness == .unsigned and foutput[i][j] < 0)
+                                return error.OutOfBound;
+
+                            array[i][j] = @intFromFloat(@round(foutput[i][j]));
+                        }
+                    }
+                    break :m Matrix(h, w, T).init(array);
+                },
+                else => unreachable,
+            };
         }
     };
 }
@@ -143,16 +177,28 @@ test "matrix multiplication" {
 }
 
 test "matrix inverse" {
-    const matrix = Matrix(2, 2, f32).init(.{
+    const data = .{
         .{ 2, 1 },
         .{ 7, 4 },
-    });
+    };
+    const data_i = .{
+        .{ 4, -1 },
+        .{ -7, 2 },
+    };
 
-    const inverse = try matrix.inverse();
+    const m1 = Matrix(2, 2, i32).init(data);
+    const m1i = try m1.inverse();
+    try std.testing.expectEqual(@as(i32, data_i[0][1]), m1i.d[0][1]);
+    try std.testing.expectEqual(@as(i32, data_i[1][0]), m1i.d[1][0]);
+    try std.testing.expectEqual(@as(i32, data_i[1][1]), m1i.d[1][1]);
 
-    try std.testing.expectApproxEqAbs(@as(f32, 4), inverse.d[0][0], 1E-5);
-    try std.testing.expectApproxEqAbs(@as(f32, -1), inverse.d[0][1], 1E-5);
+    const m2 = Matrix(2, 2, f32).init(data);
+    const m2i = try m2.inverse();
+    try std.testing.expectApproxEqAbs(@as(f32, data_i[0][0]), m2i.d[0][0], 1e-5);
+    try std.testing.expectApproxEqAbs(@as(f32, data_i[0][1]), m2i.d[0][1], 1e-5);
+    try std.testing.expectApproxEqAbs(@as(f32, data_i[1][0]), m2i.d[1][0], 1e-5);
+    try std.testing.expectApproxEqAbs(@as(f32, data_i[1][1]), m2i.d[1][1], 1e-5);
 
-    try std.testing.expectApproxEqAbs(@as(f32, -7), inverse.d[1][0], 1E-5);
-    try std.testing.expectApproxEqAbs(@as(f32, 2), inverse.d[1][1], 1E-5);
+    const m3 = Matrix(2, 2, u32).init(data);
+    try std.testing.expectError(error.OutOfBound, m3.inverse());
 }
