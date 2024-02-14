@@ -139,18 +139,16 @@ pub fn Point3D(comptime T: type) type {
         m: Matrix(4, 1, T),
 
         pub fn init(d: [3]T) Self {
-            return .{ .d = [4]T{ d[0], d[1], d[2], 1 } };
+            return .{ .m = Matrix(4, 1, T).init(.{ .{d[0]}, .{d[1]}, .{d[2]}, .{1} }) };
         }
 
-        pub fn multiply(self: *Self, matrix: *const Matrix(4, 4, T)) *Self {
-            const result = matrix.multiply(1, self.m);
+        pub fn multiply(self: *const Self, matrix: *const Matrix(4, 4, T)) Self {
+            const a = self.m.d[0][0] * matrix.d[0][0] + self.m.d[1][0] * matrix.d[1][0] + self.m.d[2][0] * matrix.d[2][0] + matrix.d[3][0];
+            const b = self.m.d[0][0] * matrix.d[0][1] + self.m.d[1][0] * matrix.d[1][1] + self.m.d[2][0] * matrix.d[2][1] + matrix.d[3][1];
+            const c = self.m.d[0][0] * matrix.d[0][2] + self.m.d[1][0] * matrix.d[1][2] + self.m.d[2][0] * matrix.d[2][2] + matrix.d[3][2];
+            const w = self.m.d[0][0] * matrix.d[0][3] + self.m.d[1][0] * matrix.d[1][3] + self.m.d[2][0] * matrix.d[2][3] + matrix.d[3][3];
 
-            self.m[0][0] = @as(T, @divExact(result.d[0], result.d[3]));
-            self.m[1][0] = @as(T, @divExact(result.d[1], result.d[3]));
-            self.m[2][0] = @as(T, @divExact(result.d[2], result.d[3]));
-            self.m[3][0] = 1;
-
-            return self;
+            return Self.init(.{ a / w, b / w, c / w });
         }
     };
 }
