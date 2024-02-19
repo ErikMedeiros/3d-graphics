@@ -50,25 +50,25 @@ fn computePixelCoordinates(
     const camera = world.multiply(world_to_camera);
 
     const screen = Point3f.init(.{
-        camera.m.d[0][0] / -camera.m.d[2][0],
-        camera.m.d[1][0] / -camera.m.d[2][0],
+        camera.x() / -camera.z(),
+        camera.y() / -camera.z(),
         0,
     });
 
     const ndc = Point3f.init(.{
-        (screen.m.d[0][0] + canvas_width * 0.5) / canvas_width,
-        (screen.m.d[1][0] + canvas_height * 0.5) / canvas_height,
+        (screen.x() + canvas_width * 0.5) / canvas_width,
+        (screen.y() + canvas_height * 0.5) / canvas_height,
         0,
     });
 
     return Point3i.init(.{
-        @as(i32, @intFromFloat(ndc.m.d[0][0] * image_width)),
-        @as(i32, @intFromFloat((1 - ndc.m.d[1][0]) * image_height)),
+        @as(i32, @intFromFloat(ndc.x() * image_width)),
+        @as(i32, @intFromFloat((1 - ndc.y()) * image_height)),
         0,
     });
 }
 
 fn writeLine(comptime T: type, a: zmath.Point3D(T), b: zmath.Point3D(T), writer: anytype) !void {
     const fmt = "<line x1=\"{d}\" y1=\"{d}\" x2=\"{d}\" y2=\"{d}\" style=\"stroke:rgb(0,0,0);stroke-width:1\" />\n";
-    return std.fmt.format(writer, fmt, .{ a.m.d[0][0], a.m.d[1][0], b.m.d[0][0], b.m.d[1][0] });
+    return std.fmt.format(writer, fmt, .{ a.x(), a.y(), b.x(), b.y() });
 }

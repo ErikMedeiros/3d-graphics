@@ -100,9 +100,9 @@ fn render(
 
         const fmt = "<line x1=\"{d:.2}\" y1=\"{d:.2}\" x2=\"{d:.2}\" y2=\"{d:.2}\" style=\"stroke:rgb({d:.2},0,0);stroke-width:1\" />\n";
 
-        try std.fmt.format(bw.writer(), fmt, .{ p_raster0.m.d[0][0], p_raster0.m.d[1][0], p_raster1.m.d[0][0], p_raster1.m.d[1][0], color });
-        try std.fmt.format(bw.writer(), fmt, .{ p_raster1.m.d[0][0], p_raster1.m.d[1][0], p_raster2.m.d[0][0], p_raster2.m.d[1][0], color });
-        try std.fmt.format(bw.writer(), fmt, .{ p_raster2.m.d[0][0], p_raster2.m.d[1][0], p_raster0.m.d[0][0], p_raster0.m.d[1][0], color });
+        try std.fmt.format(bw.writer(), fmt, .{ p_raster0.x(), p_raster0.y(), p_raster1.x(), p_raster1.y(), color });
+        try std.fmt.format(bw.writer(), fmt, .{ p_raster1.x(), p_raster1.y(), p_raster2.x(), p_raster2.y(), color });
+        try std.fmt.format(bw.writer(), fmt, .{ p_raster2.x(), p_raster2.y(), p_raster0.x(), p_raster0.y(), color });
     }
 
     _ = try bw.write("</svg>\n");
@@ -123,22 +123,22 @@ fn computePixelCoordinates(
     const camera = world.multiply(world_to_camera);
 
     const screen = Point3f.init(.{
-        camera.m.d[0][0] / -camera.m.d[2][0] * near,
-        camera.m.d[1][0] / -camera.m.d[2][0] * near,
+        camera.x() / -camera.z() * near,
+        camera.y() / -camera.z() * near,
         0,
     });
 
     const ndc = Point3f.init(.{
-        (screen.m.d[0][0] + right) / (2 * right),
-        (screen.m.d[1][0] + top) / (2 * top),
+        (screen.x() + right) / (2 * right),
+        (screen.y() + top) / (2 * top),
         0,
     });
 
     raster.* = Point3i.init(.{
-        @as(i32, @intFromFloat(ndc.m.d[0][0] * image_resolution[0])),
-        @as(i32, @intFromFloat((1 - ndc.m.d[1][0]) * image_resolution[1])),
+        @as(i32, @intFromFloat(ndc.x() * image_resolution[0])),
+        @as(i32, @intFromFloat((1 - ndc.y()) * image_resolution[1])),
         0,
     });
 
-    return !(screen.m.d[0][0] < left or screen.m.d[0][0] > right or screen.m.d[1][0] < bottom or screen.m.d[1][0] > top);
+    return !(screen.x() < left or screen.x() > right or screen.y() < bottom or screen.y() > top);
 }

@@ -142,11 +142,23 @@ pub fn Point3D(comptime T: type) type {
             return .{ .m = Matrix(4, 1, T).init(.{ .{d[0]}, .{d[1]}, .{d[2]}, .{1} }) };
         }
 
+        pub inline fn x(self: *const Self) T {
+            return self.m.d[0][0];
+        }
+
+        pub inline fn y(self: *const Self) T {
+            return self.m.d[1][0];
+        }
+
+        pub inline fn z(self: *const Self) T {
+            return self.m.d[2][0];
+        }
+
         pub fn multiply(self: *const Self, matrix: *const Matrix(4, 4, T)) Self {
-            const a = self.m.d[0][0] * matrix.d[0][0] + self.m.d[1][0] * matrix.d[1][0] + self.m.d[2][0] * matrix.d[2][0] + matrix.d[3][0];
-            const b = self.m.d[0][0] * matrix.d[0][1] + self.m.d[1][0] * matrix.d[1][1] + self.m.d[2][0] * matrix.d[2][1] + matrix.d[3][1];
-            const c = self.m.d[0][0] * matrix.d[0][2] + self.m.d[1][0] * matrix.d[1][2] + self.m.d[2][0] * matrix.d[2][2] + matrix.d[3][2];
-            const w = self.m.d[0][0] * matrix.d[0][3] + self.m.d[1][0] * matrix.d[1][3] + self.m.d[2][0] * matrix.d[2][3] + matrix.d[3][3];
+            const a = self.x() * matrix.d[0][0] + self.y() * matrix.d[1][0] + self.z() * matrix.d[2][0] + matrix.d[3][0];
+            const b = self.x() * matrix.d[0][1] + self.y() * matrix.d[1][1] + self.z() * matrix.d[2][1] + matrix.d[3][1];
+            const c = self.x() * matrix.d[0][2] + self.y() * matrix.d[1][2] + self.z() * matrix.d[2][2] + matrix.d[3][2];
+            const w = self.x() * matrix.d[0][3] + self.y() * matrix.d[1][3] + self.z() * matrix.d[2][3] + matrix.d[3][3];
 
             return Self.init(.{ a / w, b / w, c / w });
         }
